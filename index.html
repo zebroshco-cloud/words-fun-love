@@ -1,240 +1,328 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Word | Built For You My Love /title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Word Guess — 5 letters</title>
   <style>
-    .tile { aspect-ratio: 1/1; }
-    .kb { user-select: none; }
+    :root{
+      --bg:#0f172a; --panel:#111827; --muted:#9ca3af; --text:#e5e7eb;
+      --green:#22c55e; --yellow:#f59e0b; --gray:#374151;
+      --tile:#111827; --tileBorder:#374151;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:#0b1220;color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+    .wrap{max-width:720px;margin:24px auto;padding:16px}
+    h1{margin:0 0 4px 0;font-size:28px}
+    .sub{color:var(--muted);font-size:14px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+    .btn{background:#0f172a;border:1px solid #303747;color:#e5e7eb;border-radius:10px;padding:8px 12px;cursor:pointer}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .select{background:#0f172a;border:1px solid #303747;color:#e5e7eb;border-radius:10px;padding:8px 10px}
+    .badge{border:1px solid #303747;border-radius:10px;padding:6px 10px;display:inline-block}
+    .msg{margin-top:10px;background:#0f172a;border:1px solid #303747;border-radius:12px;padding:10px 12px;color:#eab308}
+    /* grid */
+    #grid{margin-top:18px;display:grid;gap:8px}
+    .guess-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+    .tile{
+      width:60px;height:60px;border:1px solid var(--tileBorder);
+      display:flex;align-items:center;justify-content:center;
+      font-weight:700;font-size:24px;border-radius:10px;background:var(--tile);
+      color:#e5e7eb;
+    }
+    .t-g{background:var(--green);color:#052e16;border-color:var(--green)}
+    .t-y{background:var(--yellow);color:#3b2a04;border-color:var(--yellow)}
+    .t-b{background:var(--gray);color:#d1d5db;border-color:var(--gray)}
+    /* keyboard */
+    #kb{margin-top:22px}
+    .kb-row{display:flex;justify-content:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+    .key{
+      min-width:36px;height:40px;padding:0 8px;border-radius:8px;border:1px solid #303747;
+      background:#111827;color:#e5e7eb;font-weight:600;cursor:pointer
+    }
+    .key-wide{min-width:64px}
+    .k-g{background:var(--green);border-color:var(--green);color:#052e16}
+    .k-y{background:var(--yellow);border-color:var(--yellow);color:#3b2a04}
+    .k-b{background:#374151;border-color:#374151;color:#d1d5db}
+    /* end card */
+    .card{margin-top:20px;background:#0f172a;border:1px solid #303747;border-radius:14px;padding:14px}
+    .legend{margin-top:22px}
+    .legend h3{color:#9ca3af;text-transform:uppercase;font-size:12px;letter-spacing:.08em;margin:0 0 6px}
+    .legend ul{margin:0;padding-left:18px;color:#cbd5e1}
+    .legend li{margin:6px 0}
+    @media (max-width:480px){ .tile{width:52px;height:52px} }
   </style>
 </head>
-<body class="bg-white text-neutral-900">
-  <div id="root"></div>
+<body>
+  <div class="wrap">
+    <div class="row">
+      <div>
+        <h1>Word Guess</h1>
+        <div class="sub" id="subtitle">5 letters · 7 guesses · Easy</div>
+      </div>
+      <div class="row" style="gap:8px">
+        <div class="badge" id="timer">⏱ 10:00</div>
+        <select id="difficulty" class="select">
+          <option value="Easy" selected>Easy</option>
+          <option value="Medium">Medium</option>
+        </select>
+        <button class="btn" id="newBtn">New Game</button>
+        <button class="btn" id="hintBtn">Hint (−60s)</button>
+        <button class="btn" id="shareBtn" disabled>Share</button>
+      </div>
+    </div>
 
-  <!-- NOTE: data-presets="react" ensures JSX compiles. -->
-  <script type="text/babel" data-presets="react">
-    const { useState, useEffect, useMemo } = React;
+    <div id="message" class="msg" style="display:none"></div>
 
-    // ---------- Word list (5 letters, uppercase) ----------
+    <div id="grid"></div>
+
+    <div id="kb">
+      <div class="kb-row" id="kb1"></div>
+      <div class="kb-row" id="kb2"></div>
+      <div class="kb-row" id="kb3"></div>
+    </div>
+
+    <div class="legend">
+      <h3>Legend</h3>
+      <ul>
+        <li><b>Colors:</b> 🟩 correct spot · 🟨 in word, wrong spot · ⬛ not in word</li>
+        <li><b>Guesses:</b> Easy 7 · Medium 3</li>
+        <li><b>Timer:</b> 10:00 countdown; at 0:00 the round locks</li>
+        <li><b>Hint:</b> reveal one correct letter (costs 60s)</li>
+        <li><b>Dictionary:</b> guesses must be valid words</li>
+        <li><b>Refresh:</b> new game + new answer</li>
+        <li><b>Controls:</b> Type letters; Enter to submit; Backspace to delete; on-screen keyboard works too</li>
+      </ul>
+    </div>
+
+    <div id="endCard" class="card" style="display:none"></div>
+  </div>
+
+  <script>
+    // ----- words (answers) -----
     const WORDS = [
       'CRANE','SLATE','POINT','BRAVE','CLOUD','SPICE','ROAST','TRAIL','PLANT','MARCH',
       'SHINE','GHOST','TIGER','MONEY','RAISE','FAITH','PRIDE','STORM','BREAD','LIGHT',
       'QUIET','HEART','FRAME','SOUND','SWEET','GRACE','WORLD','CHAIR','PLATE','SUGAR',
       'BLEND','WATER','STONE','RIVER','APPLE','GRAPE','BERRY','MANGO','LEMON','PEACH',
-      'COAST','MET
+      'COAST','METAL','SOLAR','PILOT','INDEX','OCEAN','RANCH','MAGIC','PIXEL','NINJA'
+    ];
+    // ----- valid guess list (expand anytime) -----
+    const ALLOWED = new Set([
+      ...WORDS,
+      'ARISE','ALERT','LATER','IRATE','AUDIO','ADIEU','ROUTE','SMILE','OTHER','ABOUT',
+      'WHICH','THERE','CLEAN','CLEAR','BRICK','CLICK','CHIME','CANDY','WHEAT','BASIL',
+      'GARLIC','ONION','BAGEL','PIZZA','PASTA','MELON','BERRY','APPLE','LEMON','MANGO'
+    ].map(x=>x.toUpperCase()));
 
-    const DIFFICULTY = {
-      Easy:   { maxGuesses: 7 },   // your request
-      Medium: { maxGuesses: 3 }
-    };
-
-    const qwerty = [
+    // ----- keyboard layout -----
+    const KB = [
       ['Q','W','E','R','T','Y','U','I','O','P'],
       ['A','S','D','F','G','H','J','K','L'],
       ['ENTER','Z','X','C','V','B','N','M','DEL']
     ];
 
-    function pickAnswer(){ return WORDS[Math.floor(Math.random()*WORDS.length)]; }
+    // ----- difficulty -----
+    const DIFF = { Easy:{max:7}, Medium:{max:3} };
 
-    function scoreGuess(guess, answer){
-      const A = answer.split('');
-      const G = guess.toUpperCase().split('');
+    // ----- state -----
+    let answer = '';
+    let difficulty = 'Easy';
+    let maxGuesses = DIFF[difficulty].max;
+    let rows = [];         // [{guess:'SLATE', result:['y','b','b','g','b']}]
+    let current = '';      // current 0..5 letters
+    let keyState = {};     // {A:'g'|'y'|'b'}
+    let timeLeft = 600;    // seconds
+    let ticking = null;    // interval id
+    let locked = false;    // game ended
+    // dom
+    const subtitle = document.getElementById('subtitle');
+    const gridEl = document.getElementById('grid');
+    const kb1 = document.getElementById('kb1'), kb2 = document.getElementById('kb2'), kb3 = document.getElementById('kb3');
+    const message = document.getElementById('message');
+    const timerEl = document.getElementById('timer');
+    const newBtn = document.getElementById('newBtn');
+    const hintBtn = document.getElementById('hintBtn');
+    const shareBtn = document.getElementById('shareBtn');
+    const diffSel = document.getElementById('difficulty');
+    const endCard = document.getElementById('endCard');
+
+    function pickAnswer(){ return WORDS[Math.floor(Math.random()*WORDS.length)]; }
+    const fmt = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+
+    function pulse(txt, color='#eab308'){
+      message.textContent = txt; message.style.display='block'; message.style.color=color;
+      clearTimeout(pulse._t); pulse._t = setTimeout(()=>message.style.display='none', 1500);
+    }
+
+    function scoreGuess(guess, ans){
+      const A = ans.split(''); const G = guess.split('');
       const res = Array(5).fill('b');
-      const counts = {};
-      for (let ch of A) counts[ch] = (counts[ch]||0)+1;
-      for (let i=0;i<5;i++){ if (G[i]===A[i]) { res[i]='g'; counts[G[i]]--; } }
+      const counts = {}; for (let ch of A) counts[ch]=(counts[ch]||0)+1;
+      // greens
+      for (let i=0;i<5;i++){ if (G[i]===A[i]){ res[i]='g'; counts[G[i]]--; } }
+      // yellows
       for (let i=0;i<5;i++){
         if (res[i]==='g') continue;
-        const ch=G[i];
+        const ch = G[i];
         if (counts[ch]>0){ res[i]='y'; counts[ch]--; }
       }
-      return res; // g/y/b
+      return res;
     }
 
     function mergeKeyState(prev, guess, result){
-      const rank = { b:0, y:1, g:2 };
-      const next = { ...prev };
-      for (let i=0;i<5;i++){
-        const ch = guess[i].toUpperCase();
-        const r = result[i];
-        const cur = next[ch] || 'b';
-        if (rank[r] > rank[cur]) next[ch] = r;
-      }
+      const rank={b:0,y:1,g:2}; const next={...prev};
+      for (let i=0;i<5;i++){ const ch=guess[i]; const r=result[i]; const cur=next[ch]||'b'; if (rank[r]>rank[cur]) next[ch]=r; }
       return next;
     }
 
-    function App(){
-      const [difficulty, setDifficulty] = useState('Easy');
-      const [answer, setAnswer] = useState('');
-      const [rows, setRows] = useState([]); // [{guess, result}]
-      const [current, setCurrent] = useState('');
-      const [keyState, setKeyState] = useState({});
-      const [message, setMessage] = useState('');
-      const [timeLeft, setTimeLeft] = useState(600); // 15 min
-      const [running, setRunning] = useState(false);
-      const [locked, setLocked] = useState(false);
-
-      const maxGuesses = DIFFICULTY[difficulty].maxGuesses;
-
-      function fmt(t){ const m=String(Math.floor(t/60)).padStart(2,'0'); const s=String(t%60).padStart(2,'0'); return `${m}:${s}`; }
-
-      function startNewGame(){
-        const a = pickAnswer();
-        setAnswer(a);
-        setRows([]);
-        setCurrent('');
-        setKeyState({});
-        setMessage('');
-        setTimeLeft(600);
-        setRunning(true);
-        setLocked(false);
-      }
-
-      // Auto-start on load (new word on refresh)
-      useEffect(() => { startNewGame(); }, []);
-
-      // Countdown
-      useEffect(() => {
-        if (!running || locked) return;
-        const t = setInterval(() => setTimeLeft(x => {
-          if (x<=1){ clearInterval(t); setLocked(true); setRunning(false); setMessage(`Time's up! The word was ${answer}.`); return 0; }
-          return x-1;
-        }), 1000);
-        return () => clearInterval(t);
-      }, [running, locked, answer]);
-
-      function pushLetter(ch){ if (locked||!running) return; if (/^[A-Z]$/.test(ch) && current.length<5) setCurrent(p=>p+ch); }
-      function popLetter(){ if (locked||!running) return; setCurrent(p=>p.slice(0,-1)); }
-
-      function submit(){
-        if (locked||!running) return;
-        if (current.length!==5){ pulse('Enter a 5‑letter word'); return; }
-        const result = scoreGuess(current, answer);
-        const win = result.every(x=>x==='g');
-        const g = current.toUpperCase();
-        setRows(prev=>[...prev, {guess:g, result}]);
-        setKeyState(prev=>mergeKeyState(prev, g, result));
-        setCurrent('');
-        if (win){ setLocked(true); setRunning(false); setMessage('You did it. You are loved.  Smile Please'); return; }
-        if (rows.length+1 >= maxGuesses){ setLocked(true); setRunning(false); setMessage(`Out of guesses. The word was ${answer}.`); }
-      }
-
-      function pulse(txt){ setMessage(txt); clearTimeout(pulse._t); pulse._t=setTimeout(()=>setMessage(''), 1300); }
-
-      // Keyboard
-      useEffect(() => {
-        const onKey = (e) => {
-          if (locked) return;
-          const k = e.key;
-          if (k==='Enter') return submit();
-          if (k==='Backspace') return popLetter();
-          if (/^[a-zA-Z]$/.test(k)) return pushLetter(k.toUpperCase());
-        };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-      }, [locked, current, rows, answer, running]);
-
-      function keyBg(ch){ const m={b:'bg-neutral-200',y:'bg-yellow-300',g:'bg-green-500'}; return m[keyState[ch]||'b']; }
-
-      function share(){
-        const map={b:'⬛',y:'🟨',g:'🟩'};
-        const lines = rows.map(r=>r.result.map(x=>map[x]).join(''));
-        const tries = rows.length <= maxGuesses ? rows.length : maxGuesses;
-        const hdr = `Word Guess — ${difficulty} ${rows.some(r=>r.result.every(x=>x==='g'))?tries:'X'}/${maxGuesses}  \n⏱ ${fmt(600-timeLeft)}`;
-        const out = hdr + "\n" + lines.join('\n');
-        navigator.clipboard.writeText(out).then(()=>pulse('Result copied!')).catch(()=>pulse('Copy failed'));
-      }
-
-      return (
-        <div className="p-6 max-w-3xl mx-auto">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <h1 className="text-2xl font-semibold">Word Guess</h1>
-              <div className="text-sm text-neutral-500">5 letters · {maxGuesses} guesses · {difficulty}</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="px-3 py-1 rounded border bg-white font-mono">⏱ {fmt(timeLeft)}</div>
-              <select className="px-2 py-1 border rounded" value={difficulty} onChange={(e)=>setDifficulty(e.target.value)} disabled={rows.length>0}>
-                <option>Easy</option>
-                <option>Medium</option>
-              </select>
-              <button className="px-3 py-1 rounded border" onClick={startNewGame} disabled={running}>New Game</button>
-              <button className="px-3 py-1 rounded border" onClick={share} disabled={rows.length===0}>Share</button>
-            </div>
-          </div>
-
-          {message && (
-            <div className="mt-3 p-2 rounded border bg-yellow-50 text-sm">{message}</div>
-          )}
-
-          {/* Grid */}
-          <div className="mt-6 grid gap-2" style={{ gridTemplateRows: `repeat(${maxGuesses}, 1fr)` }}>
-            {Array.from({length:maxGuesses}).map((_,rowIdx)=>{
-              const row = rows[rowIdx];
-              const isActive = rowIdx === rows.length;
-              const text = row ? row.guess : (isActive? current : '');
-              const result = row ? row.result : Array(5).fill('');
-              return (
-                <div key={rowIdx} className="grid grid-cols-5 gap-2">
-                  {Array.from({length:5}).map((__,i)=>{
-                    const letter = text[i]||'';
-                    const r = result[i]||'';
-                    const base = 'tile w-full border rounded flex items-center justify-center text-2xl font-bold';
-                    const bg = r==='g'?'bg-green-500 text-white': r==='y'?'bg-yellow-400 text-white': r==='b'?'bg-neutral-300 text-white':'bg-white';
-                    return <div key={i} className={`${base} ${bg}`}>{letter}</div>;
-                  })}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Keyboard */}
-          <div className="mt-6 kb select-none">
-            {qwerty.map((row,i)=> (
-              <div key={i} className="flex justify-center gap-1 mb-1">
-                {row.map(key => {
-                  const wide = (key==='ENTER'||key==='DEL')?'px-3':'px-2';
-                  const onClick = () => { if (key==='ENTER') submit(); else if (key==='DEL') popLetter(); else pushLetter(key); };
-                  return (
-                    <button key={key} className={`h-10 ${wide} rounded text-sm font-medium border ${key==='ENTER'||key==='DEL'?'bg-neutral-200':'bg-white'} ${key.length===1? keyBg(key):''}`} onClick={onClick} disabled={locked||!running}>{key}</button>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-
-          {/* Legend */}
-          <div className="mt-6">
-            <h3 className="text-sm uppercase tracking-wide text-neutral-500 mb-2">Legend</h3>
-            <ul className="text-sm list-disc pl-5 space-y-1 text-neutral-700">
-              <li><span className="font-medium">Colors:</span> 🟩 correct spot · 🟨 in word, wrong spot · ⬛ not in word</li>
-              <li><span className="font-medium">Guesses:</span> Easy 7 · Medium 3</li>
-              <li><span className="font-medium">Timer:</span> 10:00 countdown; at 0:00 the round locks</li>
-              <li><span className="font-medium">Refresh:</span> new game + new answer</li>
-              <li><span className="font-medium">Controls:</span> Type letters; Enter to submit; Backspace to delete; on‑screen keyboard works too</li>
-            </ul>
-          </div>
-
-          {/* Game over card */}
-          {(locked && !running) && (
-            <div className="mt-6 p-4 rounded-xl border bg-neutral-50">
-              <div className="text-lg font-semibold mb-1">{rows.some(r=>r.result.every(x=>x==='g'))? 'You did it. You are loved.  Smile Please' : `Game over — word was ${answer}.`}</div>
-              <div className="flex gap-2 mt-2">
-                <button className="px-3 py-1 rounded border" onClick={share} disabled={rows.length===0}>Copy Result</button>
-                <button className="px-3 py-1 rounded border" onClick={startNewGame}>Play Again</button>
-              </div>
-            </div>
-          )}
-        </div>
-      );
+    function renderHeader(){
+      subtitle.textContent = `5 letters · ${maxGuesses} guesses · ${difficulty}`;
+      timerEl.textContent = `⏱ ${fmt(timeLeft)}`;
+      diffSel.value = difficulty;
     }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    function renderGrid(){
+      gridEl.style.gridTemplateRows = `repeat(${maxGuesses},1fr)`;
+      gridEl.innerHTML = '';
+      for (let r=0;r<maxGuesses;r++){
+        const row = document.createElement('div'); row.className='guess-row';
+        const rowData = rows[r];
+        const isActive = (r===rows.length);
+        const text = rowData ? rowData.guess : (isActive? current : '');
+        const res = rowData ? rowData.result : Array(5).fill('');
+        for (let c=0;c<5;c++){
+          const d = document.createElement('div'); d.className='tile';
+          const letter = text[c]||'';
+          const rr = res[c]||'';
+          if (rr==='g') d.classList.add('t-g'); else if (rr==='y') d.classList.add('t-y'); else if (rr==='b') d.classList.add('t-b');
+          d.textContent = letter;
+          row.appendChild(d);
+        }
+        gridEl.appendChild(row);
+      }
+    }
+
+    function renderKeyboard(){
+      const m = { b:'k-b', y:'k-y', g:'k-g' };
+      const rowEls=[kb1,kb2,kb3];
+      [0,1,2].forEach(i => rowEls[i].innerHTML='');
+      KB[0].forEach(k => rowEls[0].appendChild(keyButton(k)));
+      KB[1].forEach(k => rowEls[1].appendChild(keyButton(k)));
+      KB[2].forEach(k => rowEls[2].appendChild(keyButton(k,true)));
+      function keyButton(k, wide=false){
+        const b=document.createElement('button');
+        b.className=`key ${wide?(k==='ENTER' || k==='DEL'?'key-wide':''):''}`;
+        b.textContent=k;
+        if (k.length===1){ const s=keyState[k]||'b'; if (m[s]) b.classList.add(m[s]); }
+        b.disabled = locked;
+        b.onclick=()=>{
+          if (k==='ENTER') submit();
+          else if (k==='DEL') backspace();
+          else letter(k);
+        };
+        return b;
+      }
+    }
+
+    function renderEnd(){
+      endCard.style.display = 'none';
+      if (!locked) return;
+      const win = rows.some(r => r.result.every(x=>x==='g'));
+      endCard.style.display = 'block';
+      endCard.innerHTML = `
+        <div style="font-weight:700;margin-bottom:6px">
+          ${win ? 'You did it. You are loved.  Smile Please' : `Game over — word was ${answer}.`}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button class="btn" id="copyBtn">Copy Result</button>
+          <button class="btn" id="againBtn">Play Again</button>
+        </div>`;
+      document.getElementById('copyBtn').onclick = share;
+      document.getElementById('againBtn').onclick = startNewGame;
+    }
+
+    function renderAll(){ renderHeader(); renderGrid(); renderKeyboard(); renderEnd(); }
+
+    function startTimer(){
+      clearInterval(ticking);
+      ticking = setInterval(()=>{
+        if (locked) { clearInterval(ticking); return; }
+        timeLeft--;
+        timerEl.textContent = `⏱ ${fmt(timeLeft)}`;
+        if (timeLeft<=0){ locked=true; clearInterval(ticking); pulse(`Time's up! The word was ${answer}`, '#f87171'); renderAll(); }
+      },1000);
+    }
+
+    function startNewGame(){
+      difficulty = diffSel.value;
+      maxGuesses = DIFF[difficulty].max;
+      answer = pickAnswer();
+      rows = []; current=''; keyState={}; timeLeft=600; locked=false;
+      shareBtn.disabled = true;
+      startTimer();
+      renderAll();
+    }
+
+    function letter(ch){ if (locked) return; if (/^[A-Z]$/.test(ch) && current.length<5){ current += ch; renderGrid(); } }
+    function backspace(){ if (locked) return; current = current.slice(0,-1); renderGrid(); }
+
+    function submit(){
+      if (locked) return;
+      if (current.length!==5){ pulse('Enter a 5-letter word'); return; }
+      const up = current.toUpperCase();
+      if (!ALLOWED.has(up)){ pulse('Not in word list'); return; }
+      const result = scoreGuess(up, answer);
+      rows.push({ guess: up, result });
+      keyState = mergeKeyState(keyState, up, result);
+      current = '';
+      const win = result.every(x=>x==='g');
+      if (win){ locked=true; clearInterval(ticking); pulse('You did it. You are loved.  Smile Please','#34d399'); }
+      else if (rows.length >= maxGuesses){ locked=true; clearInterval(ticking); pulse(`Out of guesses. The word was ${answer}`,'#f87171'); }
+      shareBtn.disabled = rows.length===0;
+      renderAll();
+    }
+
+    function hint(){
+      if (locked) return;
+      // gather positions confirmed green from history
+      const green = Array(5).fill(false);
+      rows.forEach(r => r.result.forEach((v,i)=>{ if (v==='g') green[i]=true; }));
+      let candidates = [];
+      for (let i=0;i<5;i++) if (!green[i]) candidates.push(i);
+      const idx = candidates.length ? candidates[Math.floor(Math.random()*candidates.length)] : Math.floor(Math.random()*5);
+      const ch = answer[idx];
+      timeLeft = Math.max(0, timeLeft - 60);
+      timerEl.textContent = `⏱ ${fmt(timeLeft)}`;
+      pulse(`Hint: position ${idx+1} is ${ch}`);
+    }
+
+    function share(){
+      const map = { b:'⬛', y:'🟨', g:'🟩' };
+      const lines = rows.map(r => r.result.map(x => map[x]).join(''));
+      const tries = Math.min(rows.length, maxGuesses);
+      const win = rows.some(r => r.result.every(x=>x==='g'));
+      const hdr = `Word Guess — ${difficulty} ${win?tries:'X'}/${maxGuesses}\n⏱ ${fmt(600-timeLeft)}`;
+      const out = hdr + '\n' + lines.join('\n');
+      navigator.clipboard.writeText(out).then(()=>pulse('Result copied!','#93c5fd')).catch(()=>pulse('Copy failed','#f87171'));
+    }
+
+    // keyboard listeners
+    window.addEventListener('keydown', (e)=>{
+      if (locked) return;
+      const k = e.key;
+      if (/^[a-zA-Z]$/.test(k)) letter(k.toUpperCase());
+      else if (k==='Backspace') backspace();
+      else if (k==='Enter') submit();
+    });
+
+    // buttons
+    newBtn.onclick = startNewGame;
+    hintBtn.onclick = hint;
+    shareBtn.onclick = share;
+
+    // auto-start
+    startNewGame();
   </script>
 </body>
 </html>
