@@ -3,75 +3,61 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Word Guess — 5×6</title>
+  <title>Word | Built for You My Love | Free Forever</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
-    .tile { aspect-ratio: 1 / 1; }
+    .tile { aspect-ratio: 1/1; }
     .kb { user-select: none; }
   </style>
 </head>
 <body class="bg-white text-neutral-900">
   <div id="root"></div>
 
-  <script type="text/babel">
-    const { useState, useEffect, useMemo, useRef } = React;
+  <!-- NOTE: data-presets="react" ensures JSX compiles. -->
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useMemo } = React;
 
-    // =========================
-    // Small 5-letter word list (answers)
-    // Feel free to expand — all caps
-    // =========================
+    // ---------- Word list (5 letters, uppercase) ----------
     const WORDS = [
-      'CRANE','SLATE','POINT','BRAVE','CLOUD','SPICE','ROAST','TRAIL','PLANT','MARCH','SHINE','GHOST','TIGER','MONEY','RAISE','FAITH','PRIDE','STORM','BREAD','LIGHT','QUIET','HEART','MOTOR','FRAME','SOUND','SWEET','GRACE','WORLD','CHAIR','PLATE','SUGAR','BLEND','WATER','STONE','RIVER','APPLE','GRAPE','BERRY','MANGO','LEMON','PEACH','COAST','METAL','SOLAR','VENOM','JELLY','PILOT','INDEX','OCEAN','RANCH','MAGIC','PIXEL','NINJA','ZEBRA','KOALA','FROST','GLASS','BLOSS','CANDY','THORN','NORTH','SOUTH','EASTS','WESTS','STARE','ARISE','ALERT','LATER','RATIO','OTHER','SMILE','HAPPY','ANGRY','WORRY','TRUST','SCARF','SLEEK','PRISM','ROBIN','CLEAN','CLEAT','CATER','TREAD','TREAT','ROUTE','GRIND','BRICK','CLICK','CHIME','CHALK','CHILI','BASIL','GARLIC','ONION','PASTA','PIZZA','BAGEL','BAYOU','DELTA','ARENA','NOVEL','POETR','RHYME'
-    ].filter(w=>w.length===5);
-
-    // fall-back: if list too small, duplicate with offset to avoid errors
-    if (WORDS.length < 20) { while (WORDS.length < 40) WORDS.push(...WORDS); }
-
-    // =========================
-    // Helpers
-    // =========================
-    const DATE_KEY = () => new Date().toISOString().slice(0,10); // YYYY-MM-DD
-    const DAILY_LIMIT = null; // unlimited plays per day // 4 plays per day
+      'CRANE','SLATE','POINT','BRAVE','CLOUD','SPICE','ROAST','TRAIL','PLANT','MARCH',
+      'SHINE','GHOST','TIGER','MONEY','RAISE','FAITH','PRIDE','STORM','BREAD','LIGHT',
+      'QUIET','HEART','FRAME','SOUND','SWEET','GRACE','WORLD','CHAIR','PLATE','SUGAR',
+      'BLEND','WATER','STONE','RIVER','APPLE','GRAPE','BERRY','MANGO','LEMON','PEACH',
+      'COAST','METAL','SOLAR','PILOT','INDEX','OCEAN','RANCH','MAGIC','PIXEL','NINJA'
+    ];
 
     const DIFFICULTY = {
-      Easy:  { maxGuesses: 7, hardMode: false },
-      Medium:{ maxGuesses: 3, hardMode: false }
+      Easy:   { maxGuesses: 7 },   // your request
+      Medium: { maxGuesses: 3 }
     };
 
-    function pickRandomAnswer(){
-      const i = Math.floor(Math.random()*WORDS.length);
-      return WORDS[i];
-    }
+    const qwerty = [
+      ['Q','W','E','R','T','Y','U','I','O','P'],
+      ['A','S','D','F','G','H','J','K','L'],
+      ['ENTER','Z','X','C','V','B','N','M','DEL']
+    ];
+
+    function pickAnswer(){ return WORDS[Math.floor(Math.random()*WORDS.length)]; }
 
     function scoreGuess(guess, answer){
-      // returns array of 'g' 'y' 'b' for green/yellow/blank
       const A = answer.split('');
       const G = guess.toUpperCase().split('');
       const res = Array(5).fill('b');
-
-      // count letters in answer
       const counts = {};
-      for (let ch of A){ counts[ch] = (counts[ch]||0)+1; }
-
-      // greens first
+      for (let ch of A) counts[ch] = (counts[ch]||0)+1;
+      for (let i=0;i<5;i++){ if (G[i]===A[i]) { res[i]='g'; counts[G[i]]--; } }
       for (let i=0;i<5;i++){
-        if (G[i] === A[i]) { res[i] = 'g'; counts[G[i]]--; }
+        if (res[i]==='g') continue;
+        const ch=G[i];
+        if (counts[ch]>0){ res[i]='y'; counts[ch]--; }
       }
-      // yellows
-      for (let i=0;i<5;i++){
-        if (res[i] !== 'g'){
-          const ch = G[i];
-          if (counts[ch] > 0){ res[i] = 'y'; counts[ch]--; }
-        }
-      }
-      return res;
+      return res; // g/y/b
     }
 
     function mergeKeyState(prev, guess, result){
-      // prioritize green > yellow > gray
       const rank = { b:0, y:1, g:2 };
       const next = { ...prev };
       for (let i=0;i<5;i++){
@@ -83,195 +69,102 @@
       return next;
     }
 
-    function buildConstraints(history){
-      // history: [{guess:"CRANE", result:['g','y','b','b','g']}, ...]
-      const greens = {};           // idx -> letter
-      const yellows = {};          // letter -> min count across all guesses
-      const bannedPos = {};        // idx -> Set(letters) that cannot be placed here (yellow at pos)
-      for (const h of history){
-        const g = h.guess.toUpperCase();
-        const r = h.result;
-        const localCounts = {};
-        for (let i=0;i<5;i++){
-          const ch = g[i];
-          if (r[i] === 'g'){ greens[i] = ch; localCounts[ch] = (localCounts[ch]||0)+1; }
-        }
-        for (let i=0;i<5;i++){
-          const ch = g[i];
-          if (r[i] === 'y'){
-            bannedPos[i] = bannedPos[i] || new Set();
-            bannedPos[i].add(ch);
-            localCounts[ch] = (localCounts[ch]||0)+1;
-          }
-        }
-        for (const [ch,count] of Object.entries(localCounts)){
-          yellows[ch] = Math.max(yellows[ch]||0, count);
-        }
-      }
-      return { greens, yellows, bannedPos };
-    }
-
-    function violatesHardMode(guess, constraints){
-      const g = guess.toUpperCase();
-      // greens must match positions
-      for (const [idx, ch] of Object.entries(constraints.greens)){
-        const i = parseInt(idx,10);
-        if (g[i] !== ch) return `Hard mode: ${ch} must be at position ${i+1}`;
-      }
-      // must include at least the min count of known letters
-      const counts = {};
-      for (const ch of g){ counts[ch] = (counts[ch]||0)+1; }
-      for (const [ch, min] of Object.entries(constraints.yellows)){
-        if ((counts[ch]||0) < min) return `Hard mode: include ${ch} ×${min}`;
-      }
-      // cannot place a letter in a position that was yellow there
-      for (const [idx, set] of Object.entries(constraints.bannedPos)){
-        const i = parseInt(idx,10);
-        if (set.has(g[i])) return `Hard mode: ${g[i]} cannot be in position ${i+1}`;
-      }
-      return null;
-    }
-
-    const qwerty = [
-      ['Q','W','E','R','T','Y','U','I','O','P'],
-      ['A','S','D','F','G','H','J','K','L'],
-      ['ENTER','Z','X','C','V','B','N','M','DEL']
-    ];
-
     function App(){
-      const [difficulty, setDifficulty] = useState('Easy'); // Medium per your spec
+      const [difficulty, setDifficulty] = useState('Easy');
       const [answer, setAnswer] = useState('');
       const [rows, setRows] = useState([]); // [{guess, result}]
       const [current, setCurrent] = useState('');
       const [keyState, setKeyState] = useState({});
       const [message, setMessage] = useState('');
-      const [timeLeft, setTimeLeft] = useState(600); // 10 min
+      const [timeLeft, setTimeLeft] = useState(900); // 15 min
       const [running, setRunning] = useState(false);
       const [locked, setLocked] = useState(false);
-      const [playsUsed, setPlaysUsed] = useState(0);
 
       const maxGuesses = DIFFICULTY[difficulty].maxGuesses;
-      const hardMode = DIFFICULTY[difficulty].hardMode;
 
-      // Daily play limit handling
-      useEffect(() => {
-        const k = `wordguess:plays:${DATE_KEY()}`;
-        const used = parseInt(localStorage.getItem(k)||'0',10);
-        setPlaysUsed(used);
-      }, []);
+      function fmt(t){ const m=String(Math.floor(t/60)).padStart(2,'0'); const s=String(t%60).padStart(2,'0'); return `${m}:${s}`; }
 
-      function incrementPlays(){
-        const k = `wordguess:plays:${DATE_KEY()}`;
-        const used = parseInt(localStorage.getItem(k)||'0',10) + 1;
-        localStorage.setItem(k, String(used));
-        setPlaysUsed(used);
-      }
-
-      function startNewGame(auto=false){
-        if (DAILY_LIMIT !== null && playsUsed >= DAILY_LIMIT){ setLocked(true); setMessage('Daily play limit reached. Come back tomorrow!'); return; }
-        const a = pickRandomAnswer();
+      function startNewGame(){
+        const a = pickAnswer();
         setAnswer(a);
         setRows([]);
         setCurrent('');
         setKeyState({});
         setMessage('');
-        setTimeLeft(600);
+        setTimeLeft(900);
         setRunning(true);
         setLocked(false);
-        incrementPlays();
       }
 
-      // Auto-start on load to meet "new word on refresh" requirement
-      useEffect(() => { startNewGame(true); /* consumes a play */ }, []);
+      // Auto-start on load (new word on refresh)
+      useEffect(() => { startNewGame(); }, []);
 
-      // countdown
+      // Countdown
       useEffect(() => {
         if (!running || locked) return;
         const t = setInterval(() => setTimeLeft(x => {
-          if (x <= 1){ clearInterval(t); setLocked(true); setRunning(false); setMessage(`Time's up! The word was ${answer}.`); return 0; }
+          if (x<=1){ clearInterval(t); setLocked(true); setRunning(false); setMessage(`Time's up! The word was ${answer}.`); return 0; }
           return x-1;
         }), 1000);
         return () => clearInterval(t);
       }, [running, locked, answer]);
 
-      const constraints = useMemo(() => buildConstraints(rows), [rows]);
-
-      function pushLetter(ch){
-        if (locked || !running) return;
-        if (/^[A-Z]$/.test(ch) && current.length < 5){ setCurrent(prev => prev + ch); }
-      }
-      function popLetter(){ if (locked || !running) return; setCurrent(prev => prev.slice(0,-1)); }
+      function pushLetter(ch){ if (locked||!running) return; if (/^[A-Z]$/.test(ch) && current.length<5) setCurrent(p=>p+ch); }
+      function popLetter(){ if (locked||!running) return; setCurrent(p=>p.slice(0,-1)); }
 
       function submit(){
-        if (locked || !running) return;
-        if (current.length !== 5){ pulse('Not enough letters'); return; }
-        if (!/^[A-Z]{5}$/.test(current)){ pulse('Use letters A–Z only'); return; }
-        if (hardMode){
-          const err = violatesHardMode(current, constraints);
-          if (err){ pulse(err); return; }
-        }
+        if (locked||!running) return;
+        if (current.length!==5){ pulse('Enter a 5‑letter word'); return; }
         const result = scoreGuess(current, answer);
-        const win = result.every(x => x==='g');
-        setRows(prev => [...prev, { guess: current.toUpperCase(), result }]);
-        setKeyState(prev => mergeKeyState(prev, current.toUpperCase(), result));
+        const win = result.every(x=>x==='g');
+        const g = current.toUpperCase();
+        setRows(prev=>[...prev, {guess:g, result}]);
+        setKeyState(prev=>mergeKeyState(prev, g, result));
         setCurrent('');
-        if (win){ setLocked(true); setRunning(false); setMessage('Nice!'); return; }
-        if (rows.length + 1 >= maxGuesses){ setLocked(true); setRunning(false); setMessage(`Out of guesses. The word was ${answer}.`); }
+        if (win){ setLocked(true); setRunning(false); setMessage('You did it. You are loved.  Smile Please'); return; }
+        if (rows.length+1 >= maxGuesses){ setLocked(true); setRunning(false); setMessage(`Out of guesses. The word was ${answer}.`); }
       }
 
-      function pulse(txt){ setMessage(txt); clearTimeout(pulse._t); pulse._t = setTimeout(()=>setMessage(''), 1300); }
+      function pulse(txt){ setMessage(txt); clearTimeout(pulse._t); pulse._t=setTimeout(()=>setMessage(''), 1300); }
 
-      // keyboard listeners
+      // Keyboard
       useEffect(() => {
         const onKey = (e) => {
           if (locked) return;
           const k = e.key;
-          if (k === 'Enter') return submit();
-          if (k === 'Backspace') return popLetter();
+          if (k==='Enter') return submit();
+          if (k==='Backspace') return popLetter();
           if (/^[a-zA-Z]$/.test(k)) return pushLetter(k.toUpperCase());
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-      }, [locked, current, rows, constraints, hardMode, answer, running]);
+      }, [locked, current, rows, answer, running]);
 
-      function keyBg(ch){
-        const m = { b:'bg-neutral-200', y:'bg-yellow-300', g:'bg-green-400' };
-        return m[keyState[ch] || 'b'];
-      }
-
-      function fmt(t){
-        const m = String(Math.floor(t/60)).padStart(2,'0');
-        const s = String(t%60).padStart(2,'0');
-        return `${m}:${s}`;
-      }
+      function keyBg(ch){ const m={b:'bg-neutral-200',y:'bg-yellow-300',g:'bg-green-500'}; return m[keyState[ch]||'b']; }
 
       function share(){
-        // Build emoji grid
-        const map = { b:'⬛', y:'🟨', g:'🟩' };
-        const lines = rows.map(r => r.result.map(x => map[x]).join(''));
+        const map={b:'⬛',y:'🟨',g:'🟩'};
+        const lines = rows.map(r=>r.result.map(x=>map[x]).join(''));
         const tries = rows.length <= maxGuesses ? rows.length : maxGuesses;
-        const hdr = `Word Guess — ${difficulty} ${rows.some(r=>r.result.every(x=>x==='g'))?tries:'X'}/${maxGuesses}  \n⏱ ${fmt(600-timeLeft)}`;
+        const hdr = `Word Guess — ${difficulty} ${rows.some(r=>r.result.every(x=>x==='g'))?tries:'X'}/${maxGuesses}  \n⏱ ${fmt(900-timeLeft)}`;
         const out = hdr + "\n" + lines.join('\n');
         navigator.clipboard.writeText(out).then(()=>pulse('Result copied!')).catch(()=>pulse('Copy failed'));
       }
-
-      const playsLeft = DAILY_LIMIT === null ? Infinity : Math.max(0, DAILY_LIMIT - playsUsed);
 
       return (
         <div className="p-6 max-w-3xl mx-auto">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <h1 className="text-2xl font-semibold">Word Guess</h1>
-              <div className="text-sm text-neutral-500">5 letters · {DIFFICULTY[difficulty].maxGuesses} guesses · {difficulty}{hardMode?' • Hard mode':''}</div>
+              <div className="text-sm text-neutral-500">5 letters · {maxGuesses} guesses · {difficulty}</div>
             </div>
             <div className="flex items-center gap-2">
               <div className="px-3 py-1 rounded border bg-white font-mono">⏱ {fmt(timeLeft)}</div>
-              {DAILY_LIMIT !== null && (<div className=\"px-3 py-1 rounded border bg-white\">Plays today: {playsUsed}/{DAILY_LIMIT}</div>)}
               <select className="px-2 py-1 border rounded" value={difficulty} onChange={(e)=>setDifficulty(e.target.value)} disabled={rows.length>0}>
                 <option>Easy</option>
                 <option>Medium</option>
-                </select>
-              <button className="px-3 py-1 rounded border" onClick={()=>startNewGame()} disabled={playsLeft<=0 || running}>New Game</button>
+              </select>
+              <button className="px-3 py-1 rounded border" onClick={startNewGame} disabled={running}>New Game</button>
               <button className="px-3 py-1 rounded border" onClick={share} disabled={rows.length===0}>Share</button>
             </div>
           </div>
@@ -282,56 +175,60 @@
 
           {/* Grid */}
           <div className="mt-6 grid gap-2" style={{ gridTemplateRows: `repeat(${maxGuesses}, 1fr)` }}>
-            {Array.from({length: maxGuesses}).map((_,rowIdx) => {
+            {Array.from({length:maxGuesses}).map((_,rowIdx)=>{
               const row = rows[rowIdx];
               const isActive = rowIdx === rows.length;
-              const text = row ? row.guess : (isActive ? current : '');
+              const text = row ? row.guess : (isActive? current : '');
               const result = row ? row.result : Array(5).fill('');
               return (
                 <div key={rowIdx} className="grid grid-cols-5 gap-2">
-                  {Array.from({length:5}).map((__,colIdx)=>{
-                    const letter = text[colIdx] || '';
-                    const r = result[colIdx] || '';
+                  {Array.from({length:5}).map((__,i)=>{
+                    const letter = text[i]||'';
+                    const r = result[i]||'';
                     const base = 'tile w-full border rounded flex items-center justify-center text-2xl font-bold';
                     const bg = r==='g'?'bg-green-500 text-white': r==='y'?'bg-yellow-400 text-white': r==='b'?'bg-neutral-300 text-white':'bg-white';
-                    return <div key={colIdx} className={`${base} ${bg}`}>{letter}</div>;
+                    return <div key={i} className={`${base} ${bg}`}>{letter}</div>;
                   })}
                 </div>
               );
             })}
           </div>
 
-          $1
-            <div className="mt-6">
-              <h3 className="text-sm uppercase tracking-wide text-neutral-500 mb-2">Legend</h3>
-              <ul className="text-sm list-disc pl-5 space-y-1 text-neutral-700">
-                <li><span className="font-medium">Colors:</span> 🟩 correct spot · 🟨 in word, wrong spot · ⬛ not in word</li>
-                <li><span className="font-medium">Guesses:</span> Easy 7 · Medium 3</li>
-                <li><span className="font-medium">Daily limit:</span> None (unlimited)</li>
-                <li><span className="font-medium">Timer:</span> 10:00 countdown; at 0:00 the round locks</li>
-                <li><span className="font-medium">Refresh:</span> starts a new game and uses one play</li>
-                <li><span className="font-medium">Controls:</span> Type letters, Enter to submit, Backspace to delete; on-screen keyboard works too</li>
-              </ul>
-            </div>
-
+          {/* Keyboard */}
+          <div className="mt-6 kb select-none">
+            {qwerty.map((row,i)=> (
+              <div key={i} className="flex justify-center gap-1 mb-1">
+                {row.map(key => {
+                  const wide = (key==='ENTER'||key==='DEL')?'px-3':'px-2';
+                  const onClick = () => { if (key==='ENTER') submit(); else if (key==='DEL') popLetter(); else pushLetter(key); };
+                  return (
+                    <button key={key} className={`h-10 ${wide} rounded text-sm font-medium border ${key==='ENTER'||key==='DEL'?'bg-neutral-200':'bg-white'} ${key.length===1? keyBg(key):''}`} onClick={onClick} disabled={locked||!running}>{key}</button>
+                  );
+                })}
+              </div>
             ))}
           </div>
 
-          {/* Overlays when game ends or limit reached */}
+          {/* Legend */}
+          <div className="mt-6">
+            <h3 className="text-sm uppercase tracking-wide text-neutral-500 mb-2">Legend</h3>
+            <ul className="text-sm list-disc pl-5 space-y-1 text-neutral-700">
+              <li><span className="font-medium">Colors:</span> 🟩 correct spot · 🟨 in word, wrong spot · ⬛ not in word</li>
+              <li><span className="font-medium">Guesses:</span> Easy 7 · Medium 3</li>
+              <li><span className="font-medium">Timer:</span> 15:00 countdown; at 0:00 the round locks</li>
+              <li><span className="font-medium">Refresh:</span> new game + new answer</li>
+              <li><span className="font-medium">Controls:</span> Type letters; Enter to submit; Backspace to delete; on‑screen keyboard works too</li>
+            </ul>
+          </div>
+
+          {/* Game over card */}
           {(locked && !running) && (
             <div className="mt-6 p-4 rounded-xl border bg-neutral-50">
-              <div className="text-lg font-semibold mb-1">{rows.some(r=>r.result.every(x=>x==='g'))? 'You solved it! 🎉' : `Game over — word was ${answer}.`}</div>
+              <div className="text-lg font-semibold mb-1">{rows.some(r=>r.result.every(x=>x==='g'))? 'You did it. You are loved.  Smile Please' : `Game over — word was ${answer}.`}</div>
               <div className="flex gap-2 mt-2">
                 <button className="px-3 py-1 rounded border" onClick={share} disabled={rows.length===0}>Copy Result</button>
-                <button className="px-3 py-1 rounded border" onClick={()=>startNewGame()} disabled={playsLeft<=0}>Play Again</button>
+                <button className="px-3 py-1 rounded border" onClick={startNewGame}>Play Again</button>
               </div>
-            </div>
-          )}
-
-          {DAILY_LIMIT !== null && playsUsed >= DAILY_LIMIT && (
-            <div className="mt-6 p-4 rounded-xl border bg-red-50">
-              <div className="text-lg font-semibold">Daily play limit reached</div>
-              <div className="text-sm text-neutral-700 mt-1">You can play up to 4 times per day. Come back tomorrow!</div>
             </div>
           )}
         </div>
