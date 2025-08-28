@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Word | Built for You My Love | Free Forever</title>
+  <title>Word | Built For You My Love /title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -26,8 +26,7 @@
       'SHINE','GHOST','TIGER','MONEY','RAISE','FAITH','PRIDE','STORM','BREAD','LIGHT',
       'QUIET','HEART','FRAME','SOUND','SWEET','GRACE','WORLD','CHAIR','PLATE','SUGAR',
       'BLEND','WATER','STONE','RIVER','APPLE','GRAPE','BERRY','MANGO','LEMON','PEACH',
-      'COAST','METAL','SOLAR','PILOT','INDEX','OCEAN','RANCH','MAGIC','PIXEL','NINJA'
-    ];
+      'COAST','MET
 
     const DIFFICULTY = {
       Easy:   { maxGuesses: 7 },   // your request
@@ -76,7 +75,7 @@
       const [current, setCurrent] = useState('');
       const [keyState, setKeyState] = useState({});
       const [message, setMessage] = useState('');
-      const [timeLeft, setTimeLeft] = useState(900); // 15 min
+      const [timeLeft, setTimeLeft] = useState(600); // 15 min
       const [running, setRunning] = useState(false);
       const [locked, setLocked] = useState(false);
 
@@ -91,7 +90,7 @@
         setCurrent('');
         setKeyState({});
         setMessage('');
-        setTimeLeft(900);
+        setTimeLeft(600);
         setRunning(true);
         setLocked(false);
       }
@@ -146,7 +145,7 @@
         const map={b:'⬛',y:'🟨',g:'🟩'};
         const lines = rows.map(r=>r.result.map(x=>map[x]).join(''));
         const tries = rows.length <= maxGuesses ? rows.length : maxGuesses;
-        const hdr = `Word Guess — ${difficulty} ${rows.some(r=>r.result.every(x=>x==='g'))?tries:'X'}/${maxGuesses}  \n⏱ ${fmt(900-timeLeft)}`;
+        const hdr = `Word Guess — ${difficulty} ${rows.some(r=>r.result.every(x=>x==='g'))?tries:'X'}/${maxGuesses}  \n⏱ ${fmt(600-timeLeft)}`;
         const out = hdr + "\n" + lines.join('\n');
         navigator.clipboard.writeText(out).then(()=>pulse('Result copied!')).catch(()=>pulse('Copy failed'));
       }
@@ -215,7 +214,7 @@
             <ul className="text-sm list-disc pl-5 space-y-1 text-neutral-700">
               <li><span className="font-medium">Colors:</span> 🟩 correct spot · 🟨 in word, wrong spot · ⬛ not in word</li>
               <li><span className="font-medium">Guesses:</span> Easy 7 · Medium 3</li>
-              <li><span className="font-medium">Timer:</span> 15:00 countdown; at 0:00 the round locks</li>
+              <li><span className="font-medium">Timer:</span> 10:00 countdown; at 0:00 the round locks</li>
               <li><span className="font-medium">Refresh:</span> new game + new answer</li>
               <li><span className="font-medium">Controls:</span> Type letters; Enter to submit; Backspace to delete; on‑screen keyboard works too</li>
             </ul>
