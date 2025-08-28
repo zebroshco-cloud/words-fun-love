@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Word For You My Love | Built For You with Love </title>
+  <title>Word Guess — 5×6</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -37,9 +37,8 @@
     const DAILY_LIMIT = 4; // 4 plays per day
 
     const DIFFICULTY = {
-      Easy:  { maxGuesses: 6, hardMode: false },
-      Medium:{ maxGuesses: 3, hardMode: false }, // your request
-      Hard:  { maxGuesses: 6, hardMode: true  }, // must honor revealed hints
+      Easy:  { maxGuesses: 7, hardMode: false },
+      Medium:{ maxGuesses: 3, hardMode: false }
     };
 
     function pickRandomAnswer(){
@@ -140,7 +139,7 @@
     ];
 
     function App(){
-      const [difficulty, setDifficulty] = useState('Medium'); // Medium per your spec
+      const [difficulty, setDifficulty] = useState('Easy'); // Medium per your spec
       const [answer, setAnswer] = useState('');
       const [rows, setRows] = useState([]); // [{guess, result}]
       const [current, setCurrent] = useState('');
@@ -271,8 +270,7 @@
               <select className="px-2 py-1 border rounded" value={difficulty} onChange={(e)=>setDifficulty(e.target.value)} disabled={rows.length>0}>
                 <option>Easy</option>
                 <option>Medium</option>
-                <option>Hard</option>
-              </select>
+                </select>
               <button className="px-3 py-1 rounded border" onClick={()=>startNewGame()} disabled={playsLeft<=0 || running}>New Game</button>
               <button className="px-3 py-1 rounded border" onClick={share} disabled={rows.length===0}>Share</button>
             </div>
@@ -303,26 +301,19 @@
             })}
           </div>
 
-          {/* Keyboard */}
-          <div className="mt-6 kb select-none">
-            {qwerty.map((row, i)=> (
-              <div key={i} className="flex justify-center gap-1 mb-1">
-                {row.map(key => {
-                  const wide = (key==='ENTER' || key==='DEL') ? 'px-3' : 'px-2';
-                  const onClick = () => {
-                    if (key==='ENTER') submit();
-                    else if (key==='DEL') popLetter();
-                    else pushLetter(key);
-                  };
-                  return (
-                    <button key={key}
-                      className={`h-10 ${wide} rounded text-sm font-medium border ${key==='ENTER'||key==='DEL'?'bg-neutral-200':'bg-white'} ${key.length===1? keyBg(key):''}`}
-                      onClick={onClick} disabled={locked || !running}>
-                      {key}
-                    </button>
-                  );
-                })}
-              </div>
+          $1
+            <div className="mt-6">
+              <h3 className="text-sm uppercase tracking-wide text-neutral-500 mb-2">Legend</h3>
+              <ul className="text-sm list-disc pl-5 space-y-1 text-neutral-700">
+                <li><span className="font-medium">Colors:</span> 🟩 correct spot · 🟨 in word, wrong spot · ⬛ not in word</li>
+                <li><span className="font-medium">Guesses:</span> Easy 7 · Medium 3</li>
+                <li><span className="font-medium">Daily limit:</span> 4 plays per browser</li>
+                <li><span className="font-medium">Timer:</span> 10:00 countdown; at 0:00 the round locks</li>
+                <li><span className="font-medium">Refresh:</span> starts a new game and uses one play</li>
+                <li><span className="font-medium">Controls:</span> Type letters, Enter to submit, Backspace to delete; on-screen keyboard works too</li>
+              </ul>
+            </div>
+
             ))}
           </div>
 
@@ -351,3 +342,4 @@
   </script>
 </body>
 </html>
+
